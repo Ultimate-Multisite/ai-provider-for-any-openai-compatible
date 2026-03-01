@@ -213,14 +213,13 @@ class OpenAiCompatModelDirectory extends AbstractOpenAiCompatibleModelMetadataDi
 			new SupportedOption( OptionEnum::presencePenalty() ),
 			new SupportedOption( OptionEnum::functionDeclarations() ),
 			new SupportedOption( OptionEnum::customOptions() ),
-			new SupportedOption(
-				OptionEnum::inputModalities(),
-				[
-					[ ModalityEnum::text() ],
-					[ ModalityEnum::text(), ModalityEnum::image() ],
-				]
-			),
-			new SupportedOption( OptionEnum::outputModalities(), [ [ ModalityEnum::text() ] ] ),
+			// Don't restrict inputModalities/outputModalities to specific enum values.
+			// The SDK caches ModelMetadata via PSR-16, which deserializes enum objects
+			// into new instances that fail strict (===) identity checks against the
+			// singletons used by the PromptBuilder's ModelRequirements. Passing null
+			// (accept any value) avoids this SDK cache-deserialization bug.
+			new SupportedOption( OptionEnum::inputModalities() ),
+			new SupportedOption( OptionEnum::outputModalities() ),
 			new SupportedOption( OptionEnum::outputMimeType(), [ 'text/plain', 'application/json' ] ),
 			new SupportedOption( OptionEnum::outputSchema() ),
 		];
@@ -240,11 +239,11 @@ class OpenAiCompatModelDirectory extends AbstractOpenAiCompatibleModelMetadataDi
 }
 
 // ---------------------------------------------------------------------------
-// Settings page
+// Settings registration
 // ---------------------------------------------------------------------------
 
 /**
- * Registers the settings, admin menu, and provider.
+ * Registers the plugin settings for the REST API and admin.
  */
 function register_settings(): void {
 	register_setting(
@@ -254,6 +253,7 @@ function register_settings(): void {
 			'type'              => 'string',
 			'sanitize_callback' => 'esc_url_raw',
 			'default'           => '',
+			'show_in_rest'      => true,
 		]
 	);
 
@@ -264,82 +264,170 @@ function register_settings(): void {
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
 			'default'           => '',
+			'show_in_rest'      => true,
+		]
+	);
+
+	register_setting(
+		'openai_compat_connector',
+		'openai_compat_default_model',
+		[
+			'type'              => 'string',
+			'sanitize_callback' => 'sanitize_text_field',
+			'default'           => '',
+			'show_in_rest'      => true,
 		]
 	);
 }
 add_action( 'admin_init', __NAMESPACE__ . '\\register_settings' );
+add_action( 'rest_api_init', __NAMESPACE__ . '\\register_settings' );
+
+// ---------------------------------------------------------------------------
+// Connectors page integration
+// ---------------------------------------------------------------------------
 
 /**
- * Adds the settings page under Settings.
+ * Enqueues the connector script module on the Connectors admin page.
+ *
+ * The `connectors-wp-admin_init` action fires only on the Settings > Connectors
+ * page, so the module is loaded only where it is needed.
  */
-function add_settings_page(): void {
-	add_options_page(
-		__( 'OpenAI Compatible', 'openai-compatible-connector' ),
-		__( 'OpenAI Compatible', 'openai-compatible-connector' ),
-		'manage_options',
+function enqueue_connector_module(): void {
+	wp_register_script_module(
 		'openai-compat-connector',
-		__NAMESPACE__ . '\\render_settings_page'
+		plugins_url( 'build/connector.js', __FILE__ ),
+		[
+			[
+				'id'     => '@wordpress/connectors',
+				'import' => 'static',
+			],
+		],
+		'1.0.0'
+	);
+	wp_enqueue_script_module( 'openai-compat-connector' );
+}
+add_action( 'connectors-wp-admin_init', __NAMESPACE__ . '\\enqueue_connector_module' );
+
+// ---------------------------------------------------------------------------
+// REST endpoint: list models from the configured endpoint
+// ---------------------------------------------------------------------------
+
+/**
+ * Registers a REST route that proxies /models from the configured endpoint.
+ *
+ * This avoids browser CORS issues by fetching server-side.
+ */
+function register_models_route(): void {
+	register_rest_route(
+		'openai-compat/v1',
+		'/models',
+		[
+			'methods'             => 'GET',
+			'callback'            => __NAMESPACE__ . '\\rest_list_models',
+			'permission_callback' => static function () {
+				return current_user_can( 'manage_options' );
+			},
+		]
 	);
 }
-add_action( 'admin_menu', __NAMESPACE__ . '\\add_settings_page' );
+add_action( 'rest_api_init', __NAMESPACE__ . '\\register_models_route' );
 
 /**
- * Renders the settings page.
+ * Fetches models from the configured endpoint and returns them.
+ *
+ * @return \WP_REST_Response|\WP_Error
  */
-function render_settings_page(): void {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
+function rest_list_models() {
+	$endpoint_url = get_option( 'openai_compat_endpoint_url', '' );
+
+	if ( empty( $endpoint_url ) ) {
+		return new \WP_Error(
+			'no_endpoint',
+			__( 'No endpoint URL configured.', 'openai-compatible-connector' ),
+			[ 'status' => 400 ]
+		);
 	}
-	?>
-	<div class="wrap">
-		<h1><?php esc_html_e( 'OpenAI Compatible Connector', 'openai-compatible-connector' ); ?></h1>
-		<form method="post" action="options.php">
-			<?php settings_fields( 'openai_compat_connector' ); ?>
-			<table class="form-table" role="presentation">
-				<tr>
-					<th scope="row">
-						<label for="openai_compat_endpoint_url">
-							<?php esc_html_e( 'Endpoint URL', 'openai-compatible-connector' ); ?>
-						</label>
-					</th>
-					<td>
-						<input
-							type="url"
-							id="openai_compat_endpoint_url"
-							name="openai_compat_endpoint_url"
-							value="<?php echo esc_attr( get_option( 'openai_compat_endpoint_url', '' ) ); ?>"
-							class="regular-text"
-							placeholder="http://localhost:11434/v1"
-						/>
-						<p class="description">
-							<?php esc_html_e( 'Base URL for the OpenAI-compatible API (e.g. Ollama, LM Studio, OpenRouter).', 'openai-compatible-connector' ); ?>
-						</p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row">
-						<label for="openai_compat_api_key">
-							<?php esc_html_e( 'API Key', 'openai-compatible-connector' ); ?>
-						</label>
-					</th>
-					<td>
-						<input
-							type="password"
-							id="openai_compat_api_key"
-							name="openai_compat_api_key"
-							value="<?php echo esc_attr( get_option( 'openai_compat_api_key', '' ) ); ?>"
-							class="regular-text"
-						/>
-						<p class="description">
-							<?php esc_html_e( 'Optional. Leave blank for servers that do not require authentication (e.g. local Ollama).', 'openai-compatible-connector' ); ?>
-						</p>
-					</td>
-				</tr>
-			</table>
-			<?php submit_button(); ?>
-		</form>
-	</div>
-	<?php
+
+	$models_url = rtrim( $endpoint_url, '/' ) . '/models';
+	$api_key    = get_option( 'openai_compat_api_key', '' );
+
+	$headers = [
+		'Accept' => 'application/json',
+	];
+
+	if ( ! empty( $api_key ) ) {
+		$headers['Authorization'] = 'Bearer ' . $api_key;
+	}
+
+	$response = wp_remote_get(
+		$models_url,
+		[
+			'headers' => $headers,
+			'timeout' => 15,
+		]
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return new \WP_Error(
+			'request_failed',
+			$response->get_error_message(),
+			[ 'status' => 502 ]
+		);
+	}
+
+	$code = wp_remote_retrieve_response_code( $response );
+
+	if ( $code < 200 || $code >= 300 ) {
+		return new \WP_Error(
+			'upstream_error',
+			sprintf(
+				/* translators: %d: HTTP status code */
+				__( 'Upstream returned HTTP %d.', 'openai-compatible-connector' ),
+				$code
+			),
+			[ 'status' => 502 ]
+		);
+	}
+
+	$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+	if ( ! is_array( $body ) ) {
+		return new \WP_Error(
+			'invalid_response',
+			__( 'Could not parse models response.', 'openai-compatible-connector' ),
+			[ 'status' => 502 ]
+		);
+	}
+
+	// OpenAI format: { data: [...] }  Ollama format: { models: [...] }
+	$models_data = [];
+	if ( isset( $body['data'] ) && is_array( $body['data'] ) ) {
+		$models_data = $body['data'];
+	} elseif ( isset( $body['models'] ) && is_array( $body['models'] ) ) {
+		$models_data = $body['models'];
+	}
+
+	$models = array_map(
+		static function ( array $model ): array {
+			$id   = $model['id'] ?? $model['name'] ?? 'unknown';
+			$name = $model['name'] ?? $model['id'] ?? $id;
+			return [
+				'id'   => $id,
+				'name' => $name,
+			];
+		},
+		$models_data
+	);
+
+	// Sort by name.
+	usort(
+		$models,
+		static function ( array $a, array $b ): int {
+			return strcasecmp( $a['name'], $b['name'] );
+		}
+	);
+
+	return rest_ensure_response( $models );
 }
 
 // ---------------------------------------------------------------------------
@@ -444,3 +532,12 @@ function register_provider(): void {
 	);
 }
 add_action( 'init', __NAMESPACE__ . '\\register_provider', 5 );
+
+/**
+ * Returns the configured default model ID, or empty string if none set.
+ *
+ * @return string
+ */
+function get_default_model(): string {
+	return (string) get_option( 'openai_compat_default_model', '' );
+}
