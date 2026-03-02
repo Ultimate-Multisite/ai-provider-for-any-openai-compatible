@@ -1,5 +1,5 @@
 {
-	"name": "ultimate-multisite/openai-compatible-connector",
+	"name": "ultimate-multisite/ai-provider-for-any-openai-compatible",
 	"description": "Registers a WordPress AI Client provider for any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, etc.).",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
