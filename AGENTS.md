@@ -1,6 +1,6 @@
-# AGENTS.md — OpenAI-Compatible Connector
+# AGENTS.md — AI Provider for Any OpenAI-Compatible Endpoint
 
-WordPress plugin that registers an AI Client provider for any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, etc.).
+WordPress plugin that registers an AI Client provider for Ollama, LM Studio, or any endpoint using the OpenAI-compatible API format. Not affiliated with OpenAI.
 
 ## Build Commands
 
@@ -46,8 +46,8 @@ npx eslint src/
 ### PHP
 
 - **Strict types**: Every PHP file must declare `declare(strict_types=1);`
-- **Namespace**: `OpenAiCompatibleConnector` for all classes and functions
-- **File headers**: Include `@package OpenAiCompatibleConnector` in docblocks
+- **Namespace**: `OpenAiCompatibleConnector` for all classes and functions (legacy, kept for compatibility)
+- **File headers**: Include `@package AiProviderOpenaiCompatible` in docblocks
 - **WordPress standards**: Use WordPress coding style (tabs, Yoda conditions, etc.)
 - **Type hints**: Use PHP 7.4+ type declarations for parameters and return types
 - **Escaping**: Always escape output (`esc_html()`, `esc_url()`, `esc_attr()`)

@@ -1,10 +1,10 @@
 /**
- * OpenAI Compatible Connector — Connectors page integration.
+ * AI Provider for OpenAI-Compatible — Connectors page integration.
  *
  * Registers a card on Settings > Connectors that lets users configure
  * the Endpoint URL, API Key, and Default Model from one place.
  *
- * @package OpenAiCompatibleConnector
+ * @package AiProviderOpenaiCompatible
  */
 
 import {
@@ -397,9 +397,9 @@ function OpenAiCompatConnectorCard( { slug, label, description } ) {
 
 // Register the connector card.
 registerConnector( 'ai-provider-for-any-openai-compatible/connector', {
-	label: __( 'OpenAI Compatible' ),
+	label: __( 'AI Provider for OpenAI-Compatible' ),
 	description: __(
-		'Connect to Ollama, LM Studio, OpenRouter, or any OpenAI-compatible endpoint.'
+		'Connect to Ollama, LM Studio, or any endpoint using the OpenAI-compatible API format. Not affiliated with OpenAI.'
 	),
 	render: OpenAiCompatConnectorCard,
 } );

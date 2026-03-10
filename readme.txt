@@ -1,6 +1,6 @@
-=== OpenAI-Compatible Connector ===
+=== AI Provider for Any OpenAI-Compatible Endpoint ===
 Contributors: developer-starter
-Tags: ai, ollama, openai, llm, connectors
+Tags: ai, ollama, llm, connectors, local-ai
 Requires at least: 6.9
 Tested up to: 7.0
 Stable tag: 1.0.0
@@ -8,11 +8,11 @@ Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connects the WordPress AI Client to any OpenAI-compatible endpoint.
+Connects the WordPress AI Client to Ollama, LM Studio, or any endpoint using the OpenAI-compatible API format.
 
 == Description ==
 
-This plugin extends the WordPress AI Client to support **any service or server that speaks the OpenAI-compatible API format**.
+This plugin extends the WordPress AI Client to support **any service or server that speaks the OpenAI-compatible API format**. It is not affiliated with or endorsed by OpenAI.
 
 **Supported services include:**
 
@@ -34,7 +34,7 @@ Other AI-powered plugins that use the WordPress AI Client (such as AI Experiment
 **How it works:**
 
 1. Install and activate the plugin.
-2. Go to **Settings > OpenAI Compatible** and enter your endpoint URL (e.g. `http://localhost:11434/v1` for Ollama).
+2. Go to **Settings > Connectors** and configure the "AI Provider for OpenAI-Compatible" connector with your endpoint URL (e.g. `http://localhost:11434/v1` for Ollama).
 3. Optionally provide an API key for services that require authentication.
 4. The plugin registers a provider with the WordPress AI Client and dynamically discovers all available models from your endpoint.
 
@@ -42,10 +42,10 @@ The plugin also handles practical concerns like extended HTTP timeouts for slow 
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/openai-compatible-connector/`.
+1. Upload the plugin files to `/wp-content/plugins/ai-provider-for-any-openai-compatible/`.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. **WordPress 6.9 only:** Make sure the [AI Experiments](https://wordpress.org/plugins/ai/) plugin is installed and active. It provides the AI Client SDK that this plugin requires.
-4. Go to **Settings > OpenAI Compatible** and enter your endpoint URL.
+4. Go to **Settings > Connectors** and configure the "AI Provider for OpenAI-Compatible" connector.
 5. Optionally enter an API key if your endpoint requires one.
 
 == Frequently Asked Questions ==

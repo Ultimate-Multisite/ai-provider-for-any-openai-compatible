@@ -1,5 +1,5 @@
 {
-  "name": "openai-compatible-connector",
+  "name": "ai-provider-for-any-openai-compatible",
   "private": true,
   "scripts": {
     "build": "wp-scripts build",

@@ -1,18 +1,18 @@
 <?php
 /**
- * Plugin Name: OpenAI-Compatible Connector
- * Plugin URI: https://github.com/Ultimate-Multisite/openai-compatible-connector
- * Description: Registers an AI Client provider for any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, etc.).
+ * Plugin Name: AI Provider for Any OpenAI-Compatible Endpoint
+ * Plugin URI: https://github.com/Ultimate-Multisite/ai-provider-for-any-openai-compatible
+ * Description: Registers an AI Client provider for Ollama, LM Studio, or any endpoint using the OpenAI-compatible API format. Not affiliated with OpenAI.
  * Requires at least: 6.9
  * Requires PHP: 7.4
  * Version: 1.0.0
  * Author: Ultimate Multisite Community
- * Author URI: https://ultimatemultisite.com
+ * Author URI: https://developer.developer.developer
  * License: GPL-2.0-or-later
  * License URI: https://spdx.org/licenses/GPL-2.0-or-later.html
- * Text Domain: openai-compatible-connector
+ * Text Domain: ai-provider-for-any-openai-compatible
  *
- * @package OpenAiCompatibleConnector
+ * @package AiProviderOpenaiCompatible
  */
 
 declare(strict_types=1);
