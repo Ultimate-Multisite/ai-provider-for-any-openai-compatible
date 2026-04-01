@@ -1,0 +1,87 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Cypress E2E (WP 6.9)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build plugin assets
+        run: npm run build
+
+      - name: Start wp-env
+        run: npx wp-env start
+        timeout-minutes: 10
+        env:
+          WP_ENV_HOME: /tmp/wp-env
+
+      - name: Wait for wp-env to be ready
+        run: |
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8888/wp-login.php | grep -q "200"; then
+              echo "wp-env is ready"
+              ready=1
+              break
+            fi
+            echo "Waiting for wp-env... attempt $i"
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "wp-env did not become ready in time" >&2
+            exit 1
+          fi
+
+      - name: Run Cypress E2E tests
+        run: npx cypress run
+        env:
+          WP_BASE_URL: http://localhost:8888
+          CYPRESS_WP_ADMIN_USER: admin
+          CYPRESS_WP_ADMIN_PASSWORD: password
+          CI: true
+
+      - name: Upload Cypress screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: cypress/screenshots/
+          retention-days: 7
+
+      - name: Upload Cypress videos
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-videos
+          path: cypress/videos/
+          retention-days: 7
+
+      - name: Stop wp-env
+        if: always()
+        run: npx wp-env stop
+        env:
+          WP_ENV_HOME: /tmp/wp-env

@@ -19,9 +19,48 @@ Output: `build/connector.js` (ES module for WordPress Script Modules API).
 
 ## Testing
 
-No test framework is currently configured. The plugin integrates with WordPress's AI Client SDK and is tested manually via the Connectors admin page.
+### PHPUnit (unit tests)
 
-To test locally:
+```bash
+# Via wp-env (recommended):
+npm run test:php
+npm run test:php:testdox
+
+# Via standalone install (CI):
+composer install
+bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 6.9 true
+vendor/bin/phpunit
+```
+
+Test files: `tests/php/*Test.php`. Bootstrap: `tests/bootstrap.php`.
+
+### Cypress (E2E tests)
+
+```bash
+# Start wp-env first:
+npm run wp-env:start
+
+# Run headless:
+npm run test:e2e
+
+# Open interactive:
+npm run test:e2e:open
+```
+
+Test files: `tests/e2e/*.cy.js`. Config: `cypress.config.js`.
+
+### wp-env
+
+```bash
+npm run wp-env:start   # Start WordPress 6.9 + plugin
+npm run wp-env:stop    # Stop
+npm run wp-env:clean   # Reset
+```
+
+Config: `.wp-env.json`. Override ports: `.wp-env.override.json` (gitignored).
+
+### Manual testing
+
 1. Ensure WordPress 6.9+ with AI Client SDK is active
 2. Activate the plugin
 3. Navigate to Settings → Connectors
@@ -129,8 +168,24 @@ function MyComponent() {
 │   └── provider-registration.php   # AiClient registry integration
 ├── src/
 │   └── index.jsx                   # Connectors page UI component
-└── build/
-    └── connector.js                # Compiled ES module (gitignored: no)
+├── build/
+│   └── connector.js                # Compiled ES module (gitignored: no)
+├── tests/
+│   ├── bootstrap.php               # PHPUnit bootstrap
+│   ├── php/                        # PHPUnit test cases
+│   │   ├── PluginActivationTest.php
+│   │   ├── SettingsTest.php
+│   │   └── HttpFiltersTest.php
+│   └── e2e/                        # Cypress E2E tests
+│       ├── plugin-activation.cy.js
+│       └── support/
+│           └── e2e.js
+├── bin/
+│   └── install-wp-tests.sh         # WP test suite installer (CI)
+└── .github/
+    └── workflows/
+        ├── tests.yml               # PHPUnit + PHP syntax CI
+        └── e2e.yml                 # Cypress E2E CI
 ```
 
 ### Error Handling

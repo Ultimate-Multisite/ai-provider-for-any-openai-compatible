@@ -1,14 +1,25 @@
 {
-  "name": "ultimate-ai-connector-compatible-endpoints",
-  "private": true,
-  "scripts": {
-    "build": "wp-scripts build",
-    "start": "wp-scripts start",
-    "postbuild": "npm run archive",
-    "archive": "composer archive --file=$npm_package_name --format=zip",
-    "postarchive": "rm -rf $npm_package_name && unzip $npm_package_name.zip -d $npm_package_name && rm $npm_package_name.zip && zip -r $npm_package_name.zip $npm_package_name && rm -rf $npm_package_name"
-  },
-  "devDependencies": {
-    "@wordpress/scripts": "^31.2.0"
-  }
+	"name": "ultimate-ai-connector-compatible-endpoints",
+	"private": true,
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "wp-scripts build",
+		"start": "wp-scripts start",
+		"postbuild": "npm run archive",
+		"archive": "composer archive --file=$npm_package_name --format=zip",
+		"postarchive": "rm -rf $npm_package_name && unzip $npm_package_name.zip -d $npm_package_name && rm $npm_package_name.zip && zip -r $npm_package_name.zip $npm_package_name && rm -rf $npm_package_name",
+		"test:e2e": "cypress run",
+		"test:e2e:open": "cypress open",
+		"test:php": "wp-env run tests-wordpress bash -c 'cd /var/www/html/wp-content/plugins/ultimate-ai-connector-compatible-endpoints && php vendor/bin/phpunit'",
+		"test:php:testdox": "wp-env run tests-wordpress bash -c 'cd /var/www/html/wp-content/plugins/ultimate-ai-connector-compatible-endpoints && php vendor/bin/phpunit --testdox'",
+		"wp-env": "wp-env",
+		"wp-env:start": "wp-env start",
+		"wp-env:stop": "wp-env stop",
+		"wp-env:clean": "wp-env clean all"
+	},
+	"devDependencies": {
+		"@wordpress/env": "^10.39.0",
+		"@wordpress/scripts": "^31.2.0",
+		"cypress": "^14.4.0"
+	}
 }
