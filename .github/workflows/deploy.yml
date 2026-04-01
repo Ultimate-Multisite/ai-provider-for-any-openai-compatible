@@ -1,0 +1,173 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  PLUGIN_SLUG: ultimate-ai-connector-compatible-endpoints
+
+jobs:
+  build-and-release:
+    name: Build and Create Release
+    runs-on: ubuntu-latest
+    if: github.repository == 'Ultimate-Multisite/ai-provider-for-any-compatible-endpoint'
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate release version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+          # Check plugin header matches tag
+          PLUGIN_VERSION=$(grep -oP '^\s*\*?\s*Version:\s*\K.*' ${PLUGIN_SLUG}.php | tr -d '[:space:]')
+          if [ "$PLUGIN_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Plugin header version ($PLUGIN_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+          # Check package.json matches tag
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+          # Check any version constant matches tag (generic — finds any define with VERSION)
+          CONST_VERSION=$(grep -oP "define\(\s*'[A-Z_]+VERSION'\s*,\s*'\K[^']+" ${PLUGIN_SLUG}.php 2>/dev/null | head -1 || true)
+          if [ -n "$CONST_VERSION" ] && [ "$CONST_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Version constant ($CONST_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+          # Check readme.txt Stable tag matches
+          if [ -f readme.txt ]; then
+            README_VERSION=$(grep -oP '^Stable tag:\s*\K.*' readme.txt | tr -d '[:space:]')
+            if [ "$README_VERSION" != "$TAG_VERSION" ]; then
+              echo "::error::readme.txt Stable tag ($README_VERSION) does not match tag ($TAG_VERSION)"
+              exit 1
+            fi
+          fi
+
+          # Check readme.txt has a changelog entry for this version
+          if [ -f readme.txt ]; then
+            if ! grep -qP "^=\s+\Q${TAG_VERSION}\E[\s=]" readme.txt; then
+              echo "::error::readme.txt has no changelog entry for version $TAG_VERSION"
+              exit 1
+            fi
+          fi
+
+          # Check VERSION file matches tag
+          if [ -f VERSION ]; then
+            FILE_VERSION=$(tr -d '[:space:]' < VERSION)
+            if [ "$FILE_VERSION" != "$TAG_VERSION" ]; then
+              echo "::error::VERSION file ($FILE_VERSION) does not match tag ($TAG_VERSION)"
+              exit 1
+            fi
+          fi
+
+          echo "All version checks passed: $TAG_VERSION"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, intl
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install WP-CLI
+        run: |
+          curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+
+      - name: Install dependencies
+        run: |
+          composer install --no-dev --optimize-autoloader
+          npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_SLUG }}-zip
+          path: ${{ env.PLUGIN_SLUG }}.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.PLUGIN_SLUG }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-woocommerce:
+    name: Deploy to WooCommerce Marketplace
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: github.repository == 'Ultimate-Multisite/ai-provider-for-any-compatible-endpoint'
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.PLUGIN_SLUG }}
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_SLUG }}-zip
+          path: ${{ env.PLUGIN_SLUG }}
+
+      - name: Checkout deployment tool
+        uses: actions/checkout@v4
+        with:
+          repository: Ultimate-Multisite/addon-deployment-tool
+          path: addon-deployment-tool
+          token: ${{ secrets.PAT }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, intl
+          coverage: none
+
+      - name: Install deployment tool
+        working-directory: addon-deployment-tool
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Deploy to WooCommerce
+        working-directory: addon-deployment-tool
+        env:
+          WC_CONSUMER_KEY: ${{ secrets.WC_CONSUMER_KEY }}
+          WC_CONSUMER_SECRET: ${{ secrets.WC_CONSUMER_SECRET }}
+          WP_USERNAME: ${{ secrets.WP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          MARKETPLACE_URL: https://multisiteultimate.com
+          GLOTPRESS_URL: https://translate.ultimatemultisite.com
+          TRADUTTORE_WEBHOOK_SECRET: ${{ secrets.TRADUTTORE_WEBHOOK_SECRET }}
+          NOTIFICATION_FROM_EMAIL: noreply@ultimatemultisite.com
+          NOTIFICATION_FROM_NAME: Ultimate Multisite
+        run: |
+          ./bin/deploy-addon deploy ${{ env.PLUGIN_SLUG }} \
+            --addons-dir=../ \
+            --skip-build \
+            --skip-version-bump \
+            --skip-ci-check \
+            --verbose
